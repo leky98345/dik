@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Color Drop</title>
+  <link rel="icon" href="https://mathrealize.web.app/logo.png" type="image/x-icon">
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #111;
+      color: white;
+      overflow: hidden;
+      user-select: none;
+    }
+    #game {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      background: #222;
+      touch-action: none;
+    }
+    .block {
+      position: absolute;
+      width: 50px;
+      height: 50px;
+      border-radius: 8px;
+      cursor: grab;
+      touch-action: none;
+      user-select: none;
+      transition: box-shadow 0.2s ease;
+    }
+    .block.dragging {
+      cursor: grabbing;
+      box-shadow: 0 0 12px 4px #fff9;
+      z-index: 1000;
+      transition: none;
+    }
+    .bin {
+      position: absolute;
+      bottom: 0;
+      width: 33.33%;
+      height: 100px;
+      text-align: center;
+      line-height: 100px;
+      font-weight: bold;
+      font-size: 18px;
+      color: white;
+      user-select: none;
+      touch-action: none;
+    }
+    #bin-red { background: red; left: 0; }
+    #bin-blue { background: blue; left: 33.33%; }
+    #bin-yellow { background: gold; left: 66.66%; }
+
+    #score {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      font-size: 20px;
+    }
+    #lives {
+      position: absolute;
+      top: 40px;
+      left: 10px;
+      font-size: 20px;
+    }
+    #highscore {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 20px;
+    }
+
+    /* Pause Button */
+    #pause-btn {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      transform: translateY(30px);
+      padding: 6px 12px;
+      background: #444;
+      border: none;
+      border-radius: 6px;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      user-select: none;
+      z-index: 10000;
+    }
+    #pause-btn:hover {
+      background: #666;
+    }
+
+    /* Menus */
+    .menu-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.9);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+    }
+    .menu {
+      background: #222;
+      border-radius: 14px;
+      padding: 30px 40px;
+      box-shadow: 0 0 15px #000a;
+      text-align: center;
+      min-width: 280px;
+    }
+    .menu h1 {
+      margin-bottom: 20px;
+      font-weight: 900;
+      font-size: 2.4em;
+      color: #fff;
+      user-select: none;
+    }
+    .menu button {
+      display: block;
+      margin: 10px auto;
+      font-size: 1.1em;
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      background: #555;
+      color: white;
+      font-weight: 700;
+      user-select: none;
+      transition: background 0.2s ease;
+      min-width: 150px;
+    }
+    .menu button:hover {
+      background: #777;
+    }
+
+    /* Settings toggle */
+    #sound-toggle {
+      margin-top: 20px;
+      font-size: 1.2em;
+      cursor: pointer;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+    #sound-toggle input {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+    }
+
+    /* Main menu logo top right */
+    #main-menu-logo {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      width: 36px;
+      height: 36px;
+      cursor: pointer;
+      user-select: none;
+      border-radius: 8px;
+      transition: filter 0.2s ease;
+    }
+    #main-menu-logo:hover {
+      filter: brightness(1.3);
+    }
+
+    #message {
+      text-align:right;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <div id="game" style="display:none;">
+    <div id="score">Score: 0</div>
+    <div id="lives">Lives: 3</div>
+    <button id="pause-btn" title="Pause">Pause</button>
+    <div id="highscore">High Score: 0</div>
+    <div class="bin" id="bin-red">RED</div>
+    <div class="bin" id="bin-blue">BLUE</div>
+    <div class="bin" id="bin-yellow">YELLOW</div>
+  </div>
+
+  <!-- Main Menu -->
+<div id="main-menu" class="menu-overlay">
+  <div style="display: flex; align-items: flex-start; gap: 40px; max-width: 800px; margin: auto;">
+    <div class="menu" style="flex-shrink: 0; width: 280px;">
+      <h1>Color Drop</h1>
+      <button id="play-btn">Play</button>
+      <button id="main-settings-btn">Settings</button>
+    </div>
+    <div id="announcement-board" style="
+      flex-grow: 1;
+      background: #333;
+      border-radius: 14px;
+      padding: 25px;
+      color: white;
+      font-size: 1em;
+      line-height: 1.5em;
+      user-select: none;
+      min-height: 180px;
+      max-height: 280px;
+      overflow-y: auto;
+      max-width: 450px;
+    ">
+      <H1>announcement-board</H1>
+      <p id="remoteText"></p>
+    </div>
+  </div>
+  <img id="main-menu-logo" src="https://mathrealize.web.app/logo.png" alt="Logo" title="Visit mathrealize.web.app" />
+</div>
+<script src="index.js"></script>
+  <!-- Pause Menu -->
+  <div id="pause-menu" class="menu-overlay" style="display:none;">
+    <div class="menu">
+      <h1>Paused</h1>
+      <button id="resume-btn">Resume</button>
+      <button id="pause-settings-btn">Settings</button>
+      <button id="pause-back-btn">Back to Menu</button>
+    </div>
+  </div>
+
+  <!-- Settings Menu -->
+  <div id="settings-menu" class="menu-overlay" style="display:none;">
+    <div class="menu">
+      <h1>Settings</h1>
+      <label id="sound-toggle">
+        <input type="checkbox" id="sound-checkbox" checked />
+        Sound On
+      </label>
+      <button id="settings-back-btn">Back</button>
+    </div>
+  </div>
+
+  <!-- Lose Menu -->
+  <div id="lose-menu" class="menu-overlay" style="display:none;">
+    <div class="menu">
+      <h1>Game Over</h1>
+      <p id="final-score" style="font-size: 1.2em; margin-bottom: 20px;"></p>
+      <button id="play-again-btn">Play Again</button>
+      <button id="lose-back-btn">Back to Menu</button>
+    </div>
+  </div>
+
+  <script>
+    const game = document.getElementById("game");
+    const bins = {
+      red: document.getElementById("bin-red"),
+      blue: document.getElementById("bin-blue"),
+      yellow: document.getElementById("bin-yellow"),
+    };
+
+    const colors = ["red", "blue", "yellow"];
+    let score = 0;
+    let lives = 3;
+    let highScore = parseInt(localStorage.getItem("highScore")) || 0;
+    let dropInterval = 1500;
+    let droppingTimeout;
+    let blocks = [];
+
+    // Menus
+    const mainMenu = document.getElementById("main-menu");
+    const pauseMenu = document.getElementById("pause-menu");
+    const settingsMenu = document.getElementById("settings-menu");
+    const loseMenu = document.getElementById("lose-menu");
+    const finalScoreText = document.getElementById("final-score");
+
+    // Buttons
+    const playBtn = document.getElementById("play-btn");
+    const mainSettingsBtn = document.getElementById("main-settings-btn");
+    const pauseBtn = document.getElementById("pause-btn");
+    const resumeBtn = document.getElementById("resume-btn");
+    const pauseSettingsBtn = document.getElementById("pause-settings-btn");
+    const pauseBackBtn = document.getElementById("pause-back-btn");
+    const settingsBackBtn = document.getElementById("settings-back-btn");
+    const playAgainBtn = document.getElementById("play-again-btn");
+    const loseBackBtn = document.getElementById("lose-back-btn");
+    const soundCheckbox = document.getElementById("sound-checkbox");
+    const mainMenuLogo = document.getElementById("main-menu-logo");
+
+    const scoreDisplay = document.getElementById("score");
+    const livesDisplay = document.getElementById("lives");
+    const highScoreDisplay = document.getElementById("highscore");
+
+    // Pause state
+    let paused = false;
+
+    // Sound enabled flag
+    let soundEnabled = true;
+
+    // For drag fix:
+    // Track if pointer moved enough to start dragging
+    // Threshold in pixels
+    const DRAG_THRESHOLD = 5;
+
+    function updateHUD() {
+      scoreDisplay.textContent = `Score: ${score}`;
+      livesDisplay.textContent = `Lives: ${lives}`;
+      highScoreDisplay.textContent = `High Score: ${highScore}`;
+    }
+
+    function loseLife() {
+      lives--;
+      updateHUD();
+      if (lives <= 0) {
+        gameOver();
+      }
+    }
+
+    function gameOver() {
+      stopDropping();
+      clearBlocks();
+      finalScoreText.textContent = `Your score: ${score}`;
+      loseMenu.style.display = "flex";
+      paused = true;
+      pauseBtn.style.display = "none";
+    }
+
+    function clearBlocks() {
+      blocks.forEach(b => {
+        if (b.element.parentNode) {
+          b.element.parentNode.removeChild(b.element);
+        }
+      });
+      blocks = [];
+    }
+
+    // Create a block and start falling
+    function createBlock() {
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      const block = document.createElement("div");
+      block.classList.add("block");
+      block.style.background = color;
+      block.dataset.color = color;
+      block.style.left = Math.random() * (window.innerWidth - 50) + "px";
+      block.style.top = "0px";
+      game.appendChild(block);
+
+      let falling = true;
+      const fallSpeed = 2;
+
+      let fallInterval = setInterval(() => {
+        if (!falling || paused) return;
+        const top = parseFloat(block.style.top);
+        if (top >= window.innerHeight - 110) {
+          // Remove block and lose life
+          if (block.parentNode) block.parentNode.removeChild(block);
+          clearInterval(fallInterval);
+          loseLife();
+          blocks = blocks.filter(b => b.element !== block);
+        } else {
+          block.style.top = top + fallSpeed + "px";
+        }
+      }, 16);
+
+      // Drag fix vars
+      let dragStartX = 0;
+      let dragStartY = 0;
+      let dragging = false;
+
+      // Mouse handlers
+      block.addEventListener("mousedown", (e) => {
+        if (paused) return;
+        e.preventDefault();
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+        dragging = false;
+        falling = false;
+        clearInterval(fallInterval);
+        block.classList.add("dragging");
+
+        function onMouseMove(ev) {
+          ev.preventDefault();
+          const dx = ev.clientX - dragStartX;
+          const dy = ev.clientY - dragStartY;
+          if (!dragging && Math.sqrt(dx*dx + dy*dy) > DRAG_THRESHOLD) {
+            dragging = true;
+          }
+          if (dragging) {
+            block.style.left = ev.clientX - 25 + "px";
+            block.style.top = ev.clientY - 25 + "px";
+          }
+        }
+        function onMouseUp(ev) {
+          ev.preventDefault();
+          block.classList.remove("dragging");
+          document.removeEventListener("mousemove", onMouseMove);
+          document.removeEventListener("mouseup", onMouseUp);
+          if (!dragging) {
+            // If no drag movement, resume falling
+            falling = true;
+            fallInterval = setInterval(() => {
+              if (!falling || paused) return;
+              const top = parseFloat(block.style.top);
+              if (top >= window.innerHeight - 110) {
+                if (block.parentNode) block.parentNode.removeChild(block);
+                clearInterval(fallInterval);
+                loseLife();
+                blocks = blocks.filter(b => b.element !== block);
+              } else {
+                block.style.top = top + fallSpeed + "px";
+              }
+            }, 16);
+            return;
+          }
+          // On drag end: check if over bin
+          const rect = block.getBoundingClientRect();
+          let correctBin = false;
+          for (const [color, bin] of Object.entries(bins)) {
+            const binRect = bin.getBoundingClientRect();
+            if (
+              rect.left < binRect.right &&
+              rect.right > binRect.left &&
+              rect.bottom > binRect.top
+            ) {
+              if (color === block.dataset.color) {
+                score++;
+                if (score > highScore) {
+                  highScore = score;
+                  localStorage.setItem("highScore", highScore);
+                }
+                correctBin = true;
+              } else {
+                loseLife();
+              }
+              break;
+            }
+          }
+          if (block.parentNode) block.parentNode.removeChild(block);
+          blocks = blocks.filter(b => b.element !== block);
+          updateHUD();
+        }
+        document.addEventListener("mousemove", onMouseMove);
+        document.addEventListener("mouseup", onMouseUp);
+      });
+
+      // Touch handlers (similar logic)
+      block.addEventListener("touchstart", (e) => {
+        if (paused) return;
+        e.preventDefault();
+        const touch = e.touches[0];
+        dragStartX = touch.clientX;
+        dragStartY = touch.clientY;
+        dragging = false;
+        falling = false;
+        clearInterval(fallInterval);
+        block.classList.add("dragging");
+      });
+      block.addEventListener("touchmove", (e) => {
+        if (paused) return;
+        e.preventDefault();
+        const touch = e.touches[0];
+        const dx = touch.clientX - dragStartX;
+        const dy = touch.clientY - dragStartY;
+        if (!dragging && Math.sqrt(dx*dx + dy*dy) > DRAG_THRESHOLD) {
+          dragging = true;
+        }
+        if (dragging) {
+          block.style.left = touch.clientX - 25 + "px";
+          block.style.top = touch.clientY - 25 + "px";
+        }
+      });
+      block.addEventListener("touchend", (e) => {
+        if (paused) return;
+        e.preventDefault();
+        block.classList.remove("dragging");
+        if (!dragging) {
+          // Resume falling if no drag
+          falling = true;
+          fallInterval = setInterval(() => {
+            if (!falling || paused) return;
+            const top = parseFloat(block.style.top);
+            if (top >= window.innerHeight - 110) {
+              if (block.parentNode) block.parentNode.removeChild(block);
+              clearInterval(fallInterval);
+              loseLife();
+              blocks = blocks.filter(b => b.element !== block);
+            } else {
+              block.style.top = top + fallSpeed + "px";
+            }
+          }, 16);
+          return;
+        }
+        // On drag end: check bins
+        const rect = block.getBoundingClientRect();
+        let correctBin = false;
+        for (const [color, bin] of Object.entries(bins)) {
+          const binRect = bin.getBoundingClientRect();
+          if (
+            rect.left < binRect.right &&
+            rect.right > binRect.left &&
+            rect.bottom > binRect.top
+          ) {
+            if (color === block.dataset.color) {
+              score++;
+              if (score > highScore) {
+                highScore = score;
+                localStorage.setItem("highScore", highScore);
+              }
+              correctBin = true;
+            } else {
+              loseLife();
+            }
+            break;
+          }
+        }
+        if (block.parentNode) block.parentNode.removeChild(block);
+        blocks = blocks.filter(b => b.element !== block);
+        updateHUD();
+      });
+
+      blocks.push({element: block, fallingFlag: () => falling, clearFall: () => clearInterval(fallInterval)});
+    }
+
+    function startDropping() {
+      if (paused) return;
+      createBlock();
+      droppingTimeout = setTimeout(startDropping, dropInterval);
+      if (dropInterval > 500) dropInterval -= 20; // speed up gradually
+    }
+
+    function stopDropping() {
+      clearTimeout(droppingTimeout);
+    }
+
+    function resetGame() {
+      score = 0;
+      lives = 3;
+      dropInterval = 1500;
+      updateHUD();
+      clearBlocks();
+    }
+
+    // Show/hide menus
+    function showMainMenu() {
+      mainMenu.style.display = "flex";
+      game.style.display = "none";
+      pauseMenu.style.display = "none";
+      settingsMenu.style.display = "none";
+      loseMenu.style.display = "none";
+      pauseBtn.style.display = "none";
+      paused = true;
+      clearBlocks();
+    }
+    function showGame() {
+      mainMenu.style.display = "none";
+      game.style.display = "block";
+      pauseBtn.style.display = "block";
+      pauseMenu.style.display = "none";
+      settingsMenu.style.display = "none";
+      loseMenu.style.display = "none";
+      paused = false;
+      updateHUD();
+      startDropping();
+    }
+    function showPauseMenu() {
+      pauseMenu.style.display = "flex";
+      paused = true;
+      pauseBtn.style.display = "none";
+    }
+    function hidePauseMenu() {
+      pauseMenu.style.display = "none";
+      paused = false;
+      pauseBtn.style.display = "block";
+      startDropping();
+    }
+    function showSettingsMenu() {
+      settingsMenu.style.display = "flex";
+      pauseMenu.style.display = "none";
+      mainMenu.style.display = "none";
+      loseMenu.style.display = "none";
+    }
+    function hideSettingsMenu() {
+      settingsMenu.style.display = "none";
+      if (paused) {
+        pauseMenu.style.display = "flex";
+      } else if (game.style.display === "block") {
+        // back to game
+      } else {
+        mainMenu.style.display = "flex";
+      }
+    }
+
+    // Button listeners
+    playBtn.addEventListener("click", () => {
+      resetGame();
+      showGame();
+    });
+    mainSettingsBtn.addEventListener("click", () => {
+      showSettingsMenu();
+    });
+    pauseBtn.addEventListener("click", () => {
+      showPauseMenu();
+    });
+    resumeBtn.addEventListener("click", () => {
+      hidePauseMenu();
+    });
+    pauseSettingsBtn.addEventListener("click", () => {
+      showSettingsMenu();
+    });
+    pauseBackBtn.addEventListener("click", () => {
+      showMainMenu();
+    });
+    settingsBackBtn.addEventListener("click", () => {
+      hideSettingsMenu();
+    });
+    playAgainBtn.addEventListener("click", () => {
+      resetGame();
+      showGame();
+    });
+    loseBackBtn.addEventListener("click", () => {
+      showMainMenu();
+    });
+
+    soundCheckbox.addEventListener("change", (e) => {
+      soundEnabled = e.target.checked;
+    });
+
+    mainMenuLogo.addEventListener("click", () => {
+      window.open("https://mathrealize.web.app", "_blank");
+    });
+
+    // Init HUD
+    updateHUD();
+
+    // Start on main menu
+    showMainMenu();
+
+  </script>
+</body>
+</html>
